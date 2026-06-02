@@ -51,9 +51,7 @@ def _get_secret(name: str) -> str:
         secret_path="/"
     )
 
-    print(secret)
-    print(vars(secret))
-    return ""
+    return secret.secretValue
 
 
 
