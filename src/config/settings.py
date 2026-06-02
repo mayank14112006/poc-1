@@ -59,7 +59,7 @@ ANTHROPIC_API_KEY = _get_secret("ANTHROPIC_API_KEY")
 
 # ---------- Models ----------
 
-EMBEDDING_MODEL = "voyage-3-lite"   # Voyage AI free tier
+EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
 CLAUDE_MODEL = "claude-haiku-4-5-20251001"
 
