@@ -5,23 +5,38 @@ from sentence_transformers import (
 
 class SentenceTransformerEmbeddingWrapper:
 
-    def __init__(self, model):
+    def __init__(
+        self,
+        model
+    ):
+
         self.model = model
 
-    def embed_documents(self, texts):
-        return self.model.encode(
+    def embed_documents(
+        self,
+        texts
+    ):
+
+        embeddings = self.model.encode(
             texts,
             show_progress_bar=False,
             convert_to_numpy=True
         )
 
-    def embed_query(self, text):
-        encoded = self.model.encode(
-            [text],
+        return embeddings.tolist()
+
+    def embed_query(
+        self,
+        text
+    ):
+
+        embedding = self.model.encode(
+            text,
             show_progress_bar=False,
             convert_to_numpy=True
         )
-        return encoded[0]
+
+        return embedding.tolist()
 
 
 class EmbeddingGenerator:
@@ -32,6 +47,12 @@ class EmbeddingGenerator:
             "all-MiniLM-L6-v2"
         )
 
-    def get_model(self):
+    def get_model(
+        self
+    ):
 
-        return SentenceTransformerEmbeddingWrapper(self.model)
+        return (
+            SentenceTransformerEmbeddingWrapper(
+                self.model
+            )
+        )
