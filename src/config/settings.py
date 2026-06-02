@@ -51,7 +51,10 @@ def _get_secret(name: str) -> str:
         secret_path="/"
     )
 
-    return secret.secret_value
+    print(secret)
+    print(vars(secret))
+    return ""
+
 
 
 ANTHROPIC_API_KEY = _get_secret("ANTHROPIC_API_KEY")
