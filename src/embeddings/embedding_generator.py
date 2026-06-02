@@ -1,30 +1,9 @@
-import os
-from langchain_voyageai import VoyageAIEmbeddings  # type: ignore[import]
-from src.config.settings import EMBEDDING_MODEL
+from langchain_voyageai import VoyageAIEmbeddings
+from src.config.settings import EMBEDDING_MODEL, _get_secret
 
 
 def _get_voyage_key() -> str:
-    """Pull Voyage API key from Infisical via the already-loaded settings env."""
-    from infisical_sdk import InfisicalSDKClient
-
-    token = os.getenv("INFISICAL_TOKEN")
-    project_id = os.getenv("INFISICAL_PROJECT_ID")
-
-    if not token or not project_id:
-        raise EnvironmentError(
-            "INFISICAL_TOKEN and INFISICAL_PROJECT_ID must be set."
-        )
-
-    client = InfisicalSDKClient(token=token)
-
-    secret = client.getSecret(
-        secret_name="VOYAGE_API_KEY",
-        project_id=project_id,
-        environment_slug="dev",
-        secret_path="/"
-    )
-
-    return secret.secret_value
+    return _get_secret("VOYAGE_API_KEY")
 
 
 class EmbeddingGenerator:
@@ -40,7 +19,7 @@ class EmbeddingGenerator:
 
             self._model = VoyageAIEmbeddings(
                 voyage_api_key=voyage_key,
-                model=EMBEDDING_MODEL      # "voyage-3-lite"
+                model=EMBEDDING_MODEL
             )
 
         return self._model
