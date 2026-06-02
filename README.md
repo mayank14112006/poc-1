@@ -538,7 +538,12 @@ Example Output:
 * Dense retrieval only (no hybrid search)
 
 ---
+# PDF RAG Chatbot with MCP, Claude & Streamlit
 
+[![Live Demo](https://img.shields.io/badge/Live-Demo-brightgreen)](https://5hjfvsgxrf5zsk9bvpn3mu.streamlit.app/)
+
+> Production-style Retrieval-Augmented Generation (RAG) system for querying PDF documents using semantic search, vector databases, Claude, and the Model Context Protocol (MCP).
+---
 # Author
 
 **Mayank Goel**
