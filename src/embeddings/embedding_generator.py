@@ -1,9 +1,25 @@
-from langchain_voyageai import VoyageAIEmbeddings
-from src.config.settings import EMBEDDING_MODEL, _get_secret
+from sentence_transformers import SentenceTransformer
 
 
-def _get_voyage_key() -> str:
-    return _get_secret("VOYAGE_API_KEY")
+class LocalSentenceTransformerEmbeddings:
+
+    def __init__(self, model_name="all-MiniLM-L6-v2"):
+        self.model = SentenceTransformer(model_name)
+
+    def embed_documents(self, texts):
+        embeddings = self.model.encode(
+            texts,
+            convert_to_numpy=True,
+            show_progress_bar=True
+        )
+        return embeddings.tolist()
+
+    def embed_query(self, text):
+        embedding = self.model.encode(
+            text,
+            convert_to_numpy=True
+        )
+        return embedding.tolist()
 
 
 class EmbeddingGenerator:
@@ -15,11 +31,8 @@ class EmbeddingGenerator:
 
         if self._model is None:
 
-            voyage_key = _get_voyage_key()
-
-            self._model = VoyageAIEmbeddings(
-                voyage_api_key=voyage_key,
-                model=EMBEDDING_MODEL
+            self._model = LocalSentenceTransformerEmbeddings(
+                model_name="all-MiniLM-L6-v2"
             )
 
         return self._model
