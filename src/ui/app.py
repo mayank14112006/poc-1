@@ -9,6 +9,10 @@ from src.rag.rag_pipeline import (
     RAGPipeline
 )
 
+from src.utils.bootstrap import (
+    ensure_vector_db_exists
+)
+
 
 st.set_page_config(
     page_title="RAG Chatbot",
@@ -18,6 +22,9 @@ st.set_page_config(
 
 @st.cache_resource
 def get_rag():
+
+    ensure_vector_db_exists()
+
     return RAGPipeline()
 
 
@@ -43,7 +50,11 @@ if st.button("Submit"):
 
     else:
 
-        rag = get_rag()
+        with st.spinner(
+            "Preparing vector database if needed..."
+        ):
+
+            rag = get_rag()
 
         with st.spinner(
             "Searching documents and generating answer..."
