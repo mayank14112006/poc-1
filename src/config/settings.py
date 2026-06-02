@@ -22,23 +22,29 @@ CHROMA_DIR = os.path.join(
     "chroma_db"
 )
 
-# ---------- Infisical ----------
-# Only two env vars ever need to be set manually:
-#   INFISICAL_TOKEN   — your machine identity / service token
-#   INFISICAL_PROJECT_ID — your project ID (not a secret, just an ID)
+
 
 def _get_secret(name: str) -> str:
-    token = os.getenv("INFISICAL_TOKEN")
+    client_id = os.getenv("INFISICAL_CLIENT_ID")
+    client_secret = os.getenv("INFISICAL_CLIENT_SECRET")
     project_id = os.getenv("INFISICAL_PROJECT_ID")
 
-    if not token or not project_id:
+    if not client_id or not client_secret or not project_id:
         raise EnvironmentError(
-            f"INFISICAL_TOKEN and INFISICAL_PROJECT_ID must be set to fetch secret: {name}"
+            "INFISICAL_CLIENT_ID, INFISICAL_CLIENT_SECRET, "
+            "and INFISICAL_PROJECT_ID must be set."
         )
 
-    client = InfisicalSDKClient(token=token)
+    client = InfisicalSDKClient(
+        host="https://app.infisical.com"
+    )
 
-    secret = client.getSecret(
+    client.auth.universal_auth.login(
+        client_id=client_id,
+        client_secret=client_secret
+    )
+
+    secret = client.secrets.get_secret_by_name(
         secret_name=name,
         project_id=project_id,
         environment_slug="dev",
