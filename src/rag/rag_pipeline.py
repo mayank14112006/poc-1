@@ -34,23 +34,39 @@ class RAGPipeline:
             )
         )
 
+        print(
+            "DOC COUNT:",
+            len(docs)
+        )
+
+        for doc in docs:
+            print(
+                "METADATA:",
+                doc.metadata
+            )
+
         context_parts = []
 
         for i, doc in enumerate(docs):
 
-            source = doc.metadata.get(
-                "source",
-                "Unknown"
+            metadata = doc.metadata or {}
+
+            source = (
+                metadata.get("source")
+                or metadata.get("file_path")
+                or metadata.get("filename")
+                or "Unknown document"
             )
 
-            page = doc.metadata.get(
-                "page",
-                "N/A"
+            page = (
+                metadata.get("page")
+                or metadata.get("page_number")
+                or "N/A"
             )
 
             context_parts.append(
                 f"""
-Source {i+1}
+Source {i + 1}
 Document: {source}
 Page: {page}
 
@@ -76,14 +92,19 @@ Content:
 
         for doc in docs:
 
-            source = doc.metadata.get(
-                "source",
-                "Unknown"
+            metadata = doc.metadata or {}
+
+            source = (
+                metadata.get("source")
+                or metadata.get("file_path")
+                or metadata.get("filename")
+                or "Unknown document"
             )
 
-            page = doc.metadata.get(
-                "page",
-                "N/A"
+            page = (
+                metadata.get("page")
+                or metadata.get("page_number")
+                or "N/A"
             )
 
             key = (
@@ -101,6 +122,15 @@ Content:
                         "page": page
                     }
                 )
+
+        if not sources and docs:
+
+            sources.append(
+                {
+                    "source": "Retrieved document chunks found, but metadata missing",
+                    "page": "N/A"
+                }
+            )
 
         return {
             "answer": answer,
