@@ -1,0 +1,23 @@
+# Virtual environment
+.venv/
+env/
+venv/
+ENV/
+
+# Python cache
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Local vector database (can be rebuilt offline using build_db.py)
+chroma_db/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Developer test scripts (contain temporary API keys)
+test/test_summary_bug.py
+test/test_infisical_key.py
+test/test_anthropic_models.py
+test/test1.py

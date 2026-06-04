@@ -7,24 +7,18 @@ class LocalSentenceTransformerEmbeddings:
         self.model = SentenceTransformer(model_name)
 
     def embed_documents(self, texts):
-
-        texts = [str(text) for text in texts]
-
         embeddings = self.model.encode(
             texts,
             convert_to_numpy=True,
-            show_progress_bar=False
+            show_progress_bar=True
         )
-
         return embeddings.tolist()
 
     def embed_query(self, text):
-
         embedding = self.model.encode(
-            str(text),
+            text,
             convert_to_numpy=True
         )
-
         return embedding.tolist()
 
 

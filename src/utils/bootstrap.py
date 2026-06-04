@@ -43,6 +43,11 @@ def ensure_vector_db_exists():
             "No PDFs found in data/raw_pdfs."
         )
 
+    # Normalize source metadata to store only the filename
+    for doc in documents:
+        if "source" in doc.metadata:
+            doc.metadata["source"] = os.path.basename(doc.metadata["source"])
+
     chunker = ChunkProcessor()
 
     chunks = chunker.split_documents(

@@ -77,32 +77,23 @@ def summarise_document_logic(
     retriever = get_retriever()
     rag = get_rag()
 
-    docs = retriever.vectordb.get()
+    # Query Chroma DB directly using native metadata filtering
+    docs = retriever.vectordb.get(where={"source": doc_id})
 
-    all_text = []
-
-    for metadata, document in zip(
-        docs["metadatas"],
-        docs["documents"]
-    ):
-
-        if metadata.get("source") == doc_id:
-
-            all_text.append(
-                document
-            )
-
-    if not all_text:
-
+    if not docs or not docs["documents"]:
         return {
-            "error": f"No document found with doc_id/source: {doc_id}"
+            "error": f"No document found with source: {doc_id}"
         }
 
-    combined_text = "\n".join(
-        all_text
+    # Sort chunks by page number to guarantee chronological sequence
+    sorted_chunks = sorted(
+        zip(docs["metadatas"], docs["documents"]),
+        key=lambda x: x[0].get("page", 0)
     )
+
+    combined_text = "\n".join(doc for _, doc in sorted_chunks)
 
     return rag.generator.generate_answer(
         query=f"Summarise the document {doc_id}",
-        context=combined_text[:15000]
+        context=combined_text[:30000]
     )

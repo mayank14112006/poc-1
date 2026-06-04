@@ -54,14 +54,19 @@ def _get_secret(name: str) -> str:
     return secret.secretValue
 
 
+_cached_api_key = None
 
-ANTHROPIC_API_KEY = _get_secret("ANTHROPIC_API_KEY")
+def get_anthropic_api_key() -> str:
+    global _cached_api_key
+    if _cached_api_key is None:
+        _cached_api_key = _get_secret("ANTHROPIC_API_KEY")
+    return _cached_api_key
 
 # ---------- Models ----------
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
-CLAUDE_MODEL = "claude-haiku-4-5-20251001"
+CLAUDE_MODEL = "claude-3-haiku-20240307"
 
 MAX_OUTPUT_TOKENS = 1200
 

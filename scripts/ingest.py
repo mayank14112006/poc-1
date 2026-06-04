@@ -34,6 +34,11 @@ def main():
         f"Loaded {len(documents)} pages"
     )
 
+    # Normalize source metadata to store only the filename
+    for doc in documents:
+        if "source" in doc.metadata:
+            doc.metadata["source"] = os.path.basename(doc.metadata["source"])
+
     print("Chunking...")
 
     chunker = ChunkProcessor()

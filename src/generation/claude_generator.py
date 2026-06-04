@@ -1,7 +1,7 @@
 from anthropic import Anthropic
 
 from src.config.settings import (
-    ANTHROPIC_API_KEY,
+    get_anthropic_api_key,
     CLAUDE_MODEL,
     MAX_OUTPUT_TOKENS,
 )
@@ -11,12 +11,13 @@ class ClaudeGenerator:
 
     def __init__(self):
 
-        if not ANTHROPIC_API_KEY:
+        api_key = get_anthropic_api_key()
+        if not api_key:
             raise ValueError(
                 "ANTHROPIC_API_KEY not found. Run using Infisical."
             )
 
-        self.client = Anthropic(api_key=ANTHROPIC_API_KEY)
+        self.client = Anthropic(api_key=api_key)
 
     def generate_answer(
         self,
