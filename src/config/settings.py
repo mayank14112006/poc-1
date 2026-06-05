@@ -66,7 +66,7 @@ def get_anthropic_api_key() -> str:
 
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 
-CLAUDE_MODEL = "claude-3-haiku-20240307"
+CLAUDE_MODEL = "claude-sonnet-4-6"
 
 MAX_OUTPUT_TOKENS = 1200
 
