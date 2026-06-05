@@ -10,6 +10,7 @@ if str(ROOT_DIR) not in sys.path:
 
 from src.rag.rag_pipeline import RAGPipeline
 from src.utils.bootstrap import ensure_vector_db_exists
+from src.config.settings import CLAUDE_MODEL
 
 # --- Page Configuration ---
 st.set_page_config(
@@ -229,7 +230,7 @@ if st.button("Submit Query", type="primary"):
                             🛑 **API Model Error (404 Not Found)**
                             
                             The Anthropic API returned a model not found error. This typically means:
-                            1. The model configured (`{rag_instance.generator.client.model if hasattr(rag_instance, 'generator') else 'claude-3-haiku-20240307'}`) is not enabled or available for your API key.
+                            1. The model configured (`{CLAUDE_MODEL}`) is not enabled or available for your API key.
                             2. Your Anthropic API credits have expired or the billing is inactive.
                             
                             *System Error Message:* `{error_msg}`
