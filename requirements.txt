@@ -8,3 +8,4 @@ anthropic
 infisical-python
 pypdf
 mcp
+torchvision
