@@ -9,3 +9,4 @@ infisical-python
 pypdf
 mcp
 torchvision
+protobuf==3.20.3
