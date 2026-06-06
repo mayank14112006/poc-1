@@ -216,10 +216,10 @@ if st.button("Submit Query", type="primary"):
                     # Citations
                     st.markdown("### 📚 Source Citations")
                     if response.get("sources"):
-                        citations_html = ""
-                        for src in response["sources"]:
-                            citations_html += f'<span class="source-badge">📄 {src["source"]} (Page {src["page"]})</span>'
-                        st.markdown(citations_html, unsafe_allow_html=True)
+                        st.subheader("Sources")
+                        for source in response["sources"]:
+                            index_str = f"[{source['index']}] " if "index" in source else ""
+                            st.write(f"{index_str}{source['source']} (Page {source['page']})")
                     else:
                         st.info("No explicit source citations were returned for this response.")
                         

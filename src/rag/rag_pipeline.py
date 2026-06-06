@@ -46,6 +46,7 @@ class RAGPipeline:
             )
 
         context_parts = []
+        import os
 
         for i, doc in enumerate(docs):
 
@@ -57,6 +58,8 @@ class RAGPipeline:
                 or metadata.get("filename")
                 or "Unknown document"
             )
+            # Ensure base filename only
+            source = os.path.basename(source)
 
             page = (
                 metadata.get("page")
@@ -88,9 +91,7 @@ Content:
 
         sources = []
 
-        seen = set()
-
-        for doc in docs:
+        for i, doc in enumerate(docs):
 
             metadata = doc.metadata or {}
 
@@ -100,6 +101,7 @@ Content:
                 or metadata.get("filename")
                 or "Unknown document"
             )
+            source = os.path.basename(source)
 
             page = (
                 metadata.get("page")
@@ -107,28 +109,23 @@ Content:
                 or "N/A"
             )
 
-            key = (
-                source,
-                page
+            sources.append(
+                {
+                    "index": i + 1,
+                    "source": source,
+                    "page": page,
+                    "content_preview": doc.page_content[:150].strip() + "..."
+                }
             )
-
-            if key not in seen:
-
-                seen.add(key)
-
-                sources.append(
-                    {
-                        "source": source,
-                        "page": page
-                    }
-                )
 
         if not sources and docs:
 
             sources.append(
                 {
+                    "index": 1,
                     "source": "Retrieved document chunks found, but metadata missing",
-                    "page": "N/A"
+                    "page": "N/A",
+                    "content_preview": ""
                 }
             )
 

@@ -1,29 +1,27 @@
+import os
+
+# Force CPU-only mode to avoid CUDA hangs in sandboxed environments (UWP / Claude Desktop)
+os.environ["CUDA_VISIBLE_DEVICES"] = ""
+
 _retriever = None
 _rag = None
 
 
 def get_retriever():
-
     global _retriever
-
     if _retriever is None:
-
         from src.retrieval.retriever import Retriever
         _retriever = Retriever()
-
     return _retriever
 
 
 def get_rag():
-
     global _rag
-
     if _rag is None:
-
         from src.rag.rag_pipeline import RAGPipeline
         _rag = RAGPipeline()
-
     return _rag
+
 
 
 def search_documents_logic(

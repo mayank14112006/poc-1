@@ -1,126 +1,364 @@
-# PDF RAG Chatbot & MCP Server (POC 01)
+# PDF RAG Chatbot & MCP Server — POC 01
 
-A production-grade, standards-compliant Retrieval-Augmented Generation (RAG) chatbot and Model Context Protocol (MCP) server built over a curated collection of 10 seminal machine learning and LLM research papers.
+A specification-compliant **Retrieval-Augmented Generation (RAG)** chatbot and **Model Context Protocol (MCP)** server built over a curated corpus of 10 seminal ML/LLM research papers.
 
-This project implements the foundational layer (**POC 01**) of the AI Engineering Intern assessment.
+This project implements **POC 01** of the AI Engineering Intern assessment.
 
 ---
 
 ## Architecture Overview
 
-The system operates in two phases: offline indexing and runtime query processing.
+The system operates in two independent phases: **Offline Indexing** and **Runtime Query Processing**.
 
-```mermaid
-flowchart TD
-    subgraph Ingest & Index (Offline)
-        A[10 raw PDFs] --> B[PDFLoader PyPDF]
-        B --> C[ChunkProcessor RecursiveCharacterTextSplitter]
-        C --> D[Normalize Metadata: Source Filename Only]
-        D --> E[EmbeddingGenerator SentenceTransformer]
-        E --> F[Chroma Vector Store chroma_db]
-    end
-
-    subgraph Query & Synthesis (Runtime)
-        G[MCP Client / Streamlit App] -->|User Question| H[RAGPipeline]
-        H -->|1. MMR Search fetch_k=30| F
-        H -->|2. Similarity Search k=12| F
-        F -->|Return Raw Chunks| H
-        H -->|3. Deduplicate Chunks| I[Context Builder]
-        I -->|4. Sorted by Page Number| J[Claude 3 Haiku API]
-        J -->|5. Synthesized Answer + Sources| G
-    end
 ```
+╔══════════════════════════════════════════════════════════════════════╗
+║                    PHASE 1 — OFFLINE INDEXING                       ║
+║                     (run once via build_db.py)                      ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   data/raw_pdfs/                                                     ║
+║   ┌─────────────┐                                                    ║
+║   │  10 × PDFs  │                                                    ║
+║   └──────┬──────┘                                                    ║
+║          │                                                           ║
+║          ▼                                                           ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  PDFLoader  (LangChain + PyPDF)     │  page-by-page extraction  ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │                                              ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  Metadata Normalisation             │  source → basename only   ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │                                              ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  RecursiveCharacterTextSplitter     │  chunk_size=1000          ║
+║   │  (LangChain Text Splitters)         │  chunk_overlap=200        ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │                                              ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  EmbeddingGenerator                 │  all-MiniLM-L6-v2        ║
+║   │  (SentenceTransformer — local)      │  384-dim dense vectors    ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │                                              ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  ChromaDB  (local persistent store) │  saved to chroma_db/     ║
+║   └─────────────────────────────────────┘                           ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
 
----
 
-## Features & Improvements Over Initial Build
+╔══════════════════════════════════════════════════════════════════════╗
+║               PHASE 2 — RUNTIME QUERY PROCESSING                    ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   ┌──────────────────┐        ┌──────────────────┐                  ║
+║   │  Claude Desktop  │        │  Streamlit UI     │                  ║
+║   │  (MCP Client)    │        │  src/ui/app.py    │                  ║
+║   └────────┬─────────┘        └────────┬──────────┘                 ║
+║            │  User Question             │  User Question             ║
+║            ▼                           ▼                            ║
+║   ┌─────────────────────────────────────────────────┐               ║
+║   │             FastMCP Server                      │               ║
+║   │             src/mcp/server.py                   │               ║
+║   │                                                 │               ║
+║   │   Tool 1: search_documents(query, k)            │               ║
+║   │   Tool 2: summarise_document(doc_id)            │               ║
+║   └──────────────────────┬──────────────────────────┘               ║
+║                           │                                          ║
+║                           ▼                                          ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  Retriever  (src/retrieval/)        │                           ║
+║   │                                     │                           ║
+║   │  Step 1 → MMR Search (k=12)         │  diverse results          ║
+║   │  Step 2 → Similarity Search (k=12) │  closest semantic match   ║
+║   │  Step 3 → Deduplicate & merge       │  unique top-k chunks      ║
+║   └──────────────────┬──────────────────┘                           ║
+║          query        │  embed via SentenceTransformer               ║
+║          vectors      ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  ChromaDB  (chroma_db/ on disk)     │  vector similarity lookup ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │  raw document chunks                         ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  Context Builder  (RAGPipeline)     │                           ║
+║   │                                     │                           ║
+║   │  Formats each chunk as:             │                           ║
+║   │    Source N | Document | Page       │                           ║
+║   │    Content: <chunk text>            │                           ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │  structured context string                   ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  ClaudeGenerator                    │                           ║
+║   │  Model: claude-haiku-4-5-20251001   │                           ║
+║   │  via Anthropic Python SDK           │                           ║
+║   │                                     │                           ║
+║   │  Prompt rules:                      │                           ║
+║   │  • Strict grounding (no hallucin.)  │                           ║
+║   │  • Cite every claim as [Source N]   │                           ║
+║   │  • "Not found in PDFs" if no match  │                           ║
+║   └──────────────────┬──────────────────┘                           ║
+║                       │  answer + [Source N] citations               ║
+║                       ▼                                              ║
+║   ┌─────────────────────────────────────┐                           ║
+║   │  Response returned to client        │                           ║
+║   │  • answer text with inline [Src N]  │                           ║
+║   │  • sources[]: filename, page, index │                           ║
+║   └─────────────────────────────────────┘                           ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
 
-1.  **Environment-Agnostic Metadata (Bug Fix):** Standardized metadata to store only base filenames (`Attention Is All You Need.pdf`) rather than absolute local directories (`C:\user\path\...`). This makes the index portable and ensures search/summarization works seamlessly in the cloud.
-2.  **Native Summarization Querying (Performance Fix):** Rewrote the `summarise_document` tool to use ChromaDB's native filtering (`where={"source": doc_id}`) instead of scanning all 3,000+ chunks in-memory.
-3.  **Chronological Summary Generation (Logical Fix):** Sorted chunks by page numbers before passing them to the generator. This prevents jumbled summaries and produces cohesive output.
-4.  **Lazy Secrets Initialization (Architecture Fix):** Decoupled Infisical keys so that offline database building and testing can run without throwing Universal Auth environment errors.
-5.  **Premium UI (Aesthetics Fix):** Upgraded the Streamlit app with an interactive Indigo/Purple dark-themed dashboard, Suggested Question triggers, dynamic sidebar database metrics, and clickable citation badges.
+
+╔══════════════════════════════════════════════════════════════════════╗
+║                     SECRETS MANAGEMENT                              ║
+╠══════════════════════════════════════════════════════════════════════╣
+║                                                                      ║
+║   Environment Variables                                              ║
+║   INFISICAL_CLIENT_ID     ──┐                                        ║
+║   INFISICAL_CLIENT_SECRET ──┼──► Infisical Universal Auth SDK        ║
+║   INFISICAL_PROJECT_ID    ──┘         │                              ║
+║                                       ▼                              ║
+║                              Infisical Cloud API                     ║
+║                                       │                              ║
+║                                       ▼                              ║
+║                              ANTHROPIC_API_KEY  (fetched at runtime) ║
+║                                       │                              ║
+║                                       ▼                              ║
+║                              ClaudeGenerator  (injected on init)     ║
+║                                                                      ║
+╚══════════════════════════════════════════════════════════════════════╝
+```
 
 ---
 
 ## Technical Stack
 
-*   **RAG Orchestration:** LangChain (`langchain-chroma`, `langchain-community`, `langchain-text-splitters`)
-*   **Vector Database:** ChromaDB (Local SQLite file-based)
-*   **Embeddings:** Local `all-MiniLM-L6-v2` Sentence Transformer (runs locally, 0 cost)
-*   **Synthesis LLM:** Claude 3 Haiku via official Anthropic Python SDK
-*   **Secrets Manager:** Infisical Universal Auth SDK
-*   **User Interface:** Streamlit (v1.57.0)
-*   **MCP Protocol:** FastMCP (Anthropic MCP Python SDK)
+| Layer               | Technology                                             |
+|---------------------|--------------------------------------------------------|
+| **PDF Loading**     | LangChain `PyPDFLoader` (`langchain-community`)        |
+| **Text Splitting**  | `RecursiveCharacterTextSplitter` (chunk=1000, overlap=200) |
+| **Embeddings**      | `all-MiniLM-L6-v2` via `sentence-transformers` (local) |
+| **Vector Store**    | ChromaDB — local persisted SQLite store (`chroma_db/`) |
+| **Retrieval**       | MMR + Similarity Search, deduplicated, top-k=12        |
+| **LLM**             | Claude Haiku 4.5 (`claude-haiku-4-5-20251001`) — Anthropic SDK |
+| **Secrets**         | Infisical Universal Auth SDK                           |
+| **MCP Protocol**    | FastMCP (official Anthropic MCP Python SDK)            |
+| **UI**              | Streamlit                                              |
+
+---
+
+## Knowledge Base — Indexed Documents
+
+| # | Filename | Topic |
+|---|----------|-------|
+| 1 | `Attention Is All You Need.pdf` | Transformer architecture, self-attention, multi-head attention |
+| 2 | `BERT.pdf` | Bidirectional encoders, masked language modelling |
+| 3 | `Chain-of-Thought.pdf` | Chain-of-thought prompting, reasoning traces |
+| 4 | `GPT-3.pdf` | Large language models, few-shot learning |
+| 5 | `InstructGPT Paper.pdf` | RLHF, instruction following, alignment |
+| 6 | `LORA.pdf` | Low-rank adaptation, parameter-efficient fine-tuning |
+| 7 | `Llama 2.pdf` | Open-source LLM, chat fine-tuning |
+| 8 | `RAG.pdf` | Retrieval-augmented generation |
+| 9 | `ReAct Paper.pdf` | Reasoning + acting, agent frameworks |
+| 10 | `Sentence-BERT Paper.pdf` | Sentence embeddings, semantic similarity |
+
+---
+
+## MCP Tools Specification
+
+The MCP server exposes **exactly two tools** as required by the specification:
+
+### `search_documents(query: str, k: int = 5)`
+Performs a semantic search over the ChromaDB vector store and returns the top-k most relevant chunks.
+
+**Returns:** List of `{ source, page, content }` objects.
+
+### `summarise_document(doc_id: str)`
+Fetches all chunks belonging to a specific document (matched by exact filename), sorts them by page, and sends the combined text to Claude Haiku 4.5 for a comprehensive summary.
+
+**`doc_id` must be an exact filename** from the table above (e.g. `"Attention Is All You Need.pdf"`).
+
+**Returns:** `{ answer: "<summary text>" }`
 
 ---
 
 ## Setup & Ingest Pipeline
 
 ### 1. Prerequisites
-Ensure you have Python 3.10+ installed and a virtual environment activated:
+
+Python 3.10+ required. Create and activate a virtual environment:
+
 ```bash
+# Create virtual environment
 python -m venv .venv
+
+# Activate — Windows
 .venv\Scripts\activate
+
+# Activate — Linux / macOS
+source .venv/bin/activate
+
+# Install dependencies
 pip install -r requirements.txt
 ```
 
-### 2. Configure Environment Variables
-You must set your Infisical client credentials in the environment to enable LLM synthesis:
+### 2. Configure Infisical Secrets
+
+This project uses **Infisical** as a secrets manager. The `ANTHROPIC_API_KEY` is stored in Infisical and fetched at runtime — it is never hardcoded or committed to the repository.
+
+You must create an Infisical project, add `ANTHROPIC_API_KEY` as a secret in the `dev` environment, and obtain a **Universal Auth** client ID and secret.
+
+Set the following environment variables before running:
+
 ```powershell
 # PowerShell (Windows)
-$env:INFISICAL_CLIENT_ID="25050f8a-32df-4ccf-888d-da3930cfc033"
-$env:INFISICAL_CLIENT_SECRET="f3ad9988d2af4d8f1b81764c11bccb0acaca1819757a7e65fd4d396255b0039a"
-$env:INFISICAL_PROJECT_ID="71e13dcb-270b-475d-a565-49885b7ec22b"
+$env:INFISICAL_CLIENT_ID="your_infisical_client_id"
+$env:INFISICAL_CLIENT_SECRET="your_infisical_client_secret"
+$env:INFISICAL_PROJECT_ID="your_infisical_project_id"
 ```
 
-### 3. Rebuild Database (Optional)
-The pre-built vector store is located in `chroma_db/`. To re-index the raw PDFs inside `data/raw_pdfs/` from scratch, run:
+```bash
+# Bash (Linux / macOS)
+export INFISICAL_CLIENT_ID="your_infisical_client_id"
+export INFISICAL_CLIENT_SECRET="your_infisical_client_secret"
+export INFISICAL_PROJECT_ID="your_infisical_project_id"
+```
+
+### 3. Build the Vector Database
+
+Place your PDFs in `data/raw_pdfs/` and run the ingestion script once:
+
 ```bash
 python build_db.py
 ```
+
+This will:
+1. Load and parse all PDFs page-by-page
+2. Normalise metadata (source stored as base filename only)
+3. Split text into 1000-character chunks with 200-character overlap
+4. Generate 384-dimensional embeddings locally via `all-MiniLM-L6-v2`
+5. Persist the ChromaDB vector store to `chroma_db/`
 
 ---
 
 ## Running the Applications
 
-### 1. Launch Streamlit Chat UI
-Run the local web dashboard:
+### Option A — Streamlit Chat UI
+
 ```bash
 streamlit run src/ui/app.py
 ```
 
-### 2. Launch MCP Server
-To run the server in developer/standalone mode:
+Opens at `http://localhost:8501`. Provides a chat interface backed by the full RAG pipeline with inline `[Source N]` citations.
+
+### Option B — MCP Server (standalone)
+
 ```bash
-python src/mcp/server.py
+python -m src.mcp.server
 ```
 
-To configure it inside **Claude Desktop**, add the server definition to your `claude_desktop_config.json` (located at `%APPDATA%\Roaming\Claude\claude_desktop_config.json`):
+The server pre-warms the embedding model and vector database on startup (~25–30 seconds), then listens on stdio for MCP JSON-RPC messages.
+
+### Option C — MCP Server inside Claude Desktop
+
+Add the following block to your `claude_desktop_config.json`:
+
+- **Standard install:** `%APPDATA%\Roaming\Claude\claude_desktop_config.json`
+- **Microsoft Store (UWP):** `%LOCALAPPDATA%\Packages\Claude_pzs8sxrjxfjjc\LocalCache\Roaming\Claude\claude_desktop_config.json`
 
 ```json
 {
   "mcpServers": {
-    "rag-mcp-server": {
-      "command": "python",
-      "args": [
-        "-u",
-        "C:/intern_task/src/mcp/server.py"
-      ],
+    "rag-pdf-server": {
+      "command": "C:\\intern_task\\.venv\\Scripts\\python.exe",
+      "args": ["-m", "src.mcp.server"],
+      "cwd": "C:\\intern_task",
       "env": {
-        "INFISICAL_CLIENT_ID": "25050f8a-32df-4ccf-888d-da3930cfc033",
-        "INFISICAL_CLIENT_SECRET": "f3ad9988d2af4d8f1b81764c11bccb0acaca1819757a7e65fd4d396255b0039a",
-        "INFISICAL_PROJECT_ID": "71e13dcb-270b-475d-a565-49885b7ec22b"
+        "PYTHONPATH": "C:\\intern_task",
+        "INFISICAL_CLIENT_ID": "your_infisical_client_id",
+        "INFISICAL_CLIENT_SECRET": "your_infisical_client_secret",
+        "INFISICAL_PROJECT_ID": "your_infisical_project_id"
       }
     }
   }
 }
 ```
 
+Restart Claude Desktop after saving. The server will appear as `rag-pdf-server` with two tools available.
+
 ---
 
-## Known Issues & Validation Notes
+## Compliance Verification
 
-*   **API Model Name Deprecation (Resolved):** The original project specified a placeholder model `claude-haiku-4-5-20251001` which causes a `404 Not Found` API exception. We updated it to the stable `claude-3-haiku-20240307` in `src/config/settings.py` for standard access.
-*   **Hugging Face Rate Limits:** During first run, the local SentenceTransformer downloads weights from HF Hub. You may see a warning about unauthenticated requests, but the weights will download successfully and cache locally.
-*   **Key Billing Check:** If you receive a `404 model: claude-3-haiku-20240307` error, it indicates the active key in your Infisical vault is tied to a workspace with an expired or zero-credit balance. Update the `ANTHROPIC_API_KEY` inside your Infisical dashboard under the `dev` environment to restore access.
+An automated verification script is included to validate the full specification:
+
+```bash
+# Basic checks (no API calls)
+python test/verify_compliance.py
+
+# Full checks including live Anthropic API call
+python test/verify_compliance.py --live
+```
+
+The script validates:
+1. ChromaDB loads and contains indexed documents
+2. Exactly two MCP tools are registered (`search_documents`, `summarise_document`)
+3. No hardcoded secrets exist in any source or test file
+4. `search_documents_logic` returns correct results with source/page metadata
+
+---
+
+## Project Structure
+
+```
+intern_task/
+├── data/
+│   └── raw_pdfs/               # 10 source PDFs (input to ingestion)
+├── chroma_db/                  # Persisted ChromaDB vector store
+├── src/
+│   ├── config/
+│   │   └── settings.py         # Model config, paths, Infisical secret fetch
+│   ├── loaders/
+│   │   └── pdf_loader.py       # PyPDFLoader wrapper
+│   ├── chunking/
+│   │   └── text_splitter.py    # RecursiveCharacterTextSplitter wrapper
+│   ├── embeddings/
+│   │   └── embedding_generator.py  # SentenceTransformer (local, CPU-only)
+│   ├── vectordb/
+│   │   └── chroma_manager.py   # ChromaDB create / load
+│   ├── retrieval/
+│   │   └── retriever.py        # MMR + similarity search, deduplication
+│   ├── generation/
+│   │   └── claude_generator.py # Anthropic API call, strict grounding prompt
+│   ├── rag/
+│   │   └── rag_pipeline.py     # Orchestrates retrieval → context → generation
+│   ├── mcp/
+│   │   ├── server.py           # FastMCP server, 2 tools, pre-warm on startup
+│   │   └── tools.py            # Tool logic implementations
+│   └── ui/
+│       └── app.py              # Streamlit chat interface
+├── scripts/
+│   └── ingest.py               # Alternative ingestion entry point
+├── test/
+│   ├── test1.py                # Infisical connection smoke test
+│   └── verify_compliance.py    # Full spec compliance checker
+├── build_db.py                 # Main ingestion entry point
+├── requirements.txt
+├── .gitignore
+└── README.md
+```
+
+---
+
+## Known Limitations
+
+- **MCP Server startup time:** The server pre-warms the `SentenceTransformer` model and ChromaDB on startup. This takes approximately 25–30 seconds before the first tool call can be served. Claude Desktop users should wait a few seconds after the app opens before using the tools.
+- **First-run model download:** On the very first run, `SentenceTransformer` downloads `all-MiniLM-L6-v2` weights (~120 MB) from Hugging Face Hub and caches them locally. Subsequent runs use the local cache.
+- **Model access:** The project uses `claude-haiku-4-5-20251001`. Ensure your Anthropic account has access to this model and has sufficient API credits.
+- **Infisical connectivity:** An active internet connection is required at startup to authenticate with Infisical and fetch the `ANTHROPIC_API_KEY`.
+- **CPU-only inference:** Embeddings run on CPU (`CUDA_VISIBLE_DEVICES` is forced empty to prevent GPU initialisation hangs in sandboxed environments).
