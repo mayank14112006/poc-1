@@ -1,10 +1,15 @@
 import os
+import threading
 
-# Force CPU-only mode to avoid CUDA hangs in sandboxed environments (UWP / Claude Desktop)
+# Force CPU-only mode — prevents CUDA driver scans that can hang for minutes
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
 
 _retriever = None
 _rag = None
+
+# Set by server.py's background pre-warm thread when models are loaded.
+# Tool functions wait on this before executing so they never time out.
+_init_event = threading.Event()
 
 
 def get_retriever():
@@ -28,6 +33,9 @@ def search_documents_logic(
     query: str,
     k: int = 5
 ):
+    # Wait up to 5 minutes for the background pre-warm thread to finish.
+    # Pre-warm takes ~30-60s; Claude Desktop tool timeout is ~4 min — safe.
+    _init_event.wait(timeout=300.0)
 
     retriever = get_retriever()
 
@@ -71,6 +79,8 @@ def ask_documents_logic(
 def summarise_document_logic(
     doc_id: str
 ):
+    # Wait up to 5 minutes for the background pre-warm thread to finish.
+    _init_event.wait(timeout=300.0)
 
     retriever = get_retriever()
     rag = get_rag()
@@ -94,4 +104,4 @@ def summarise_document_logic(
     return rag.generator.generate_answer(
         query=f"Summarise the document {doc_id}",
         context=combined_text[:30000]
-    )
+    )

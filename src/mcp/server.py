@@ -1,5 +1,6 @@
 import os
 import sys
+import threading
 from pathlib import Path
 
 # Force CPU-only mode to avoid CUDA hangs in sandboxed environments (UWP / Claude Desktop)
@@ -78,16 +79,30 @@ def summarise_document(
 
 
 if __name__ == "__main__":
-    # --- PRE-WARM: load models and vector DB before starting the stdio MCP loop ---
-    # Claude Desktop sends tool calls within seconds of tools/list.
-    # Any loading that happens inside a tool call will time out.
-    # Loading here is SAFE: there is no timeout before mcp.run() begins.
-    print("[server] Pre-warming retriever and RAG pipeline...", file=sys.stderr, flush=True)
-    try:
-        get_retriever()
-        get_rag()
-        print("[server] Pre-warm complete. Starting MCP server.", file=sys.stderr, flush=True)
-    except Exception as e:
-        print(f"[server] Pre-warm failed (will retry on first call): {e}", file=sys.stderr, flush=True)
+    # ── STRATEGY ─────────────────────────────────────────────────────────────
+    # Claude Desktop's initialize handshake times out after 60 seconds.
+    # Pre-warming synchronously before mcp.run() can exceed that limit.
+    #
+    # Solution:
+    #   1. Kick off pre-warm in a background THREAD immediately.
+    #   2. Call mcp.run() right away → initialize responds in <1 second.
+    #   3. Tool call functions in tools.py wait on _init_event (up to 5 min).
+    #      The 5-min wait is safe: Claude Desktop's per-tool timeout is ~4 min,
+    #      but pre-warm completes in ~30-60 seconds, long before that.
+    # ─────────────────────────────────────────────────────────────────────────
+    from src.mcp.tools import _init_event
 
+    def _prewarm():
+        print("[server] Background pre-warm started...", file=sys.stderr, flush=True)
+        try:
+            get_retriever()
+            get_rag()
+            print("[server] Background pre-warm complete — tools are ready.", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"[server] Pre-warm error: {e}", file=sys.stderr, flush=True)
+        finally:
+            _init_event.set()  # unblock any waiting tool calls
+
+    threading.Thread(target=_prewarm, daemon=True).start()
+    print("[server] MCP server starting (pre-warm running in background)...", file=sys.stderr, flush=True)
     mcp.run()
