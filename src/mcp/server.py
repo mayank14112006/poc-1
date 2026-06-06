@@ -93,15 +93,20 @@ if __name__ == "__main__":
     from src.mcp.tools import _init_event
 
     def _prewarm():
-        print("[server] Background pre-warm started...", file=sys.stderr, flush=True)
+        """Pre-warm ONLY local components (no network calls).
+
+        get_retriever() loads SentenceTransformer + ChromaDB — fully local, ~30s.
+        get_rag() requires Infisical (network) — skipped here to avoid hangs.
+        RAGPipeline is loaded lazily on the first summarise_document call instead.
+        """
+        print("[server] Background pre-warm: loading local retriever...", file=sys.stderr, flush=True)
         try:
             get_retriever()
-            get_rag()
-            print("[server] Background pre-warm complete — tools are ready.", file=sys.stderr, flush=True)
+            print("[server] Pre-warm complete — search_documents is ready.", file=sys.stderr, flush=True)
         except Exception as e:
-            print(f"[server] Pre-warm error: {e}", file=sys.stderr, flush=True)
+            print(f"[server] Pre-warm error (retriever): {e}", file=sys.stderr, flush=True)
         finally:
-            _init_event.set()  # unblock any waiting tool calls
+            _init_event.set()
 
     threading.Thread(target=_prewarm, daemon=True).start()
     print("[server] MCP server starting (pre-warm running in background)...", file=sys.stderr, flush=True)
