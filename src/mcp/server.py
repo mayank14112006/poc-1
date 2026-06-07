@@ -1,6 +1,5 @@
 import os
 import sys
-import threading
 from pathlib import Path
 
 # Force CPU-only mode to avoid CUDA hangs in sandboxed environments (UWP / Claude Desktop)
@@ -79,31 +78,14 @@ def summarise_document(
 
 
 if __name__ == "__main__":
-    # ── STRATEGY ─────────────────────────────────────────────────────────────
-    # Claude Desktop's initialize handshake times out after 60 seconds.
-    # Pre-warming synchronously before mcp.run() can exceed that limit.
-    #
-    # Solution:
-    #   1. Kick off pre-warm in a background THREAD immediately.
-    #   2. Call mcp.run() right away → initialize responds in <1 second.
-    #   3. Tool call functions in tools.py wait on _init_event (up to 5 min).
-    #      The 5-min wait is safe: Claude Desktop's per-tool timeout is ~4 min,
-    #      but pre-warm completes in ~30-60 seconds, long before that.
-    # ─────────────────────────────────────────────────────────────────────────
-    def _prewarm():
-        """Pre-warm ONLY local components (no network calls).
+    import time
+    print("[server] MCP server starting: pre-loading retriever...", file=sys.stderr, flush=True)
+    t0 = time.time()
+    try:
+        get_retriever()
+        print(f"[server] Retriever pre-loaded successfully in {time.time()-t0:.2f}s.", file=sys.stderr, flush=True)
+    except Exception as e:
+        print(f"[server] Error pre-loading retriever: {e}", file=sys.stderr, flush=True)
 
-        get_retriever() loads SentenceTransformer + ChromaDB — fully local, ~30s.
-        get_rag() requires Infisical (network) — skipped here to avoid hangs.
-        RAGPipeline is loaded lazily on the first summarise_document call instead.
-        """
-        print("[server] Background pre-warm: loading local retriever...", file=sys.stderr, flush=True)
-        try:
-            get_retriever()
-            print("[server] Pre-warm complete — search_documents is ready.", file=sys.stderr, flush=True)
-        except Exception as e:
-            print(f"[server] Pre-warm error (retriever): {e}", file=sys.stderr, flush=True)
-
-    threading.Thread(target=_prewarm, daemon=True).start()
-    print("[server] MCP server starting (pre-warm running in background)...", file=sys.stderr, flush=True)
+    print("[server] Starting FastMCP server...", file=sys.stderr, flush=True)
     mcp.run()

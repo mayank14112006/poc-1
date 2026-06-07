@@ -13,11 +13,19 @@ _rag_lock = threading.Lock()
 
 def get_retriever():
     global _retriever
+    import sys
+    print("[tools] get_retriever start...", file=sys.stderr, flush=True)
     if _retriever is None:
+        print("[tools] get_retriever: acquiring lock...", file=sys.stderr, flush=True)
         with _retriever_lock:
+            print("[tools] get_retriever: lock acquired...", file=sys.stderr, flush=True)
             if _retriever is None:
+                print("[tools] get_retriever: importing Retriever...", file=sys.stderr, flush=True)
                 from src.retrieval.retriever import Retriever
+                print("[tools] get_retriever: Retriever imported. Initializing...", file=sys.stderr, flush=True)
                 _retriever = Retriever()
+                print("[tools] get_retriever: Retriever initialized.", file=sys.stderr, flush=True)
+    print("[tools] get_retriever end.", file=sys.stderr, flush=True)
     return _retriever
 
 
@@ -36,6 +44,8 @@ def search_documents_logic(
     query: str,
     k: int = 5
 ):
+    import sys
+    print(f"[tools] search_documents_logic start: query='{query}', k={k}", file=sys.stderr, flush=True)
     retriever = get_retriever()
 
     docs = retriever.search(
@@ -78,6 +88,8 @@ def ask_documents_logic(
 def summarise_document_logic(
     doc_id: str
 ):
+    import sys
+    print(f"[tools] summarise_document_logic start: doc_id='{doc_id}'", file=sys.stderr, flush=True)
     retriever = get_retriever()
     rag = get_rag()
 

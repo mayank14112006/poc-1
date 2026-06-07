@@ -10,17 +10,23 @@ from src.vectordb.chroma_manager import (
 class Retriever:
 
     def __init__(self):
+        import sys
+        print("[retriever] __init__ start...", file=sys.stderr, flush=True)
 
+        print("[retriever] __init__: loading embedding model...", file=sys.stderr, flush=True)
         embedding_model = (
             EmbeddingGenerator()
             .get_model()
         )
+        print("[retriever] __init__: embedding model loaded.", file=sys.stderr, flush=True)
 
+        print("[retriever] __init__: loading vector store...", file=sys.stderr, flush=True)
         self.vectordb = (
             ChromaManager(
                 embedding_model
             ).load_vector_store()
         )
+        print("[retriever] __init__: vector store loaded.", file=sys.stderr, flush=True)
 
     def search(
         self,
