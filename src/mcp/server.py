@@ -79,13 +79,26 @@ def summarise_document(
 
 if __name__ == "__main__":
     import time
-    print("[server] MCP server starting: pre-loading retriever...", file=sys.stderr, flush=True)
-    t0 = time.time()
-    try:
-        get_retriever()
-        print(f"[server] Retriever pre-loaded successfully in {time.time()-t0:.2f}s.", file=sys.stderr, flush=True)
-    except Exception as e:
-        print(f"[server] Error pre-loading retriever: {e}", file=sys.stderr, flush=True)
+    import threading
+
+    # Start background thread to initialize the retriever (loading weights / Chroma DB)
+    # after a 5-second delay to ensure FastMCP completes its handshake first
+    def pre_load_retriever():
+        print("[server] Background pre-load thread: sleeping 5s to let FastMCP finish handshake...", file=sys.stderr, flush=True)
+        time.sleep(5)
+        print("[server] Background pre-load thread: starting initialization...", file=sys.stderr, flush=True)
+        t0 = time.time()
+        try:
+            # Import Retriever inside the thread after handshake is done
+            from src.retrieval.retriever import Retriever
+            get_retriever()
+            print(f"[server] Retriever pre-loaded successfully in background in {time.time()-t0:.2f}s.", file=sys.stderr, flush=True)
+        except Exception as e:
+            print(f"[server] Error pre-loading retriever in background: {e}", file=sys.stderr, flush=True)
+
+    print("[server] Starting background pre-loading thread...", file=sys.stderr, flush=True)
+    loading_thread = threading.Thread(target=pre_load_retriever, daemon=True)
+    loading_thread.start()
 
     print("[server] Starting FastMCP server...", file=sys.stderr, flush=True)
     mcp.run()
