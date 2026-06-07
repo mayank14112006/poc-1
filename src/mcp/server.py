@@ -91,10 +91,9 @@ if __name__ == "__main__":
         print("[server] Background pre-load thread: starting initialization...", file=sys.stderr, flush=True)
         t0 = time.time()
         try:
-            # Import Retriever inside the thread after handshake is done
-            from src.retrieval.retriever import Retriever
-            get_retriever()
-            print(f"[server] Retriever pre-loaded successfully in background in {time.time()-t0:.2f}s.", file=sys.stderr, flush=True)
+            get_retriever(prevent_block=False)
+            get_rag(prevent_block=False)
+            print(f"[server] Retriever and RAG pre-loaded successfully in background in {time.time()-t0:.2f}s.", file=sys.stderr, flush=True)
         except Exception as e:
             print(f"[server] Error pre-loading retriever in background: {e}", file=sys.stderr, flush=True)
 

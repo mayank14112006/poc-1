@@ -11,31 +11,43 @@ _retriever_lock = threading.Lock()
 _rag_lock = threading.Lock()
 
 
-def get_retriever():
+def get_retriever(prevent_block=False):
     global _retriever
     import sys
+    if _retriever is not None:
+        return _retriever
+
+    if prevent_block:
+        # Fast path check without lock to prevent tool call timeout
+        return None
+
     print("[tools] get_retriever start...", file=sys.stderr, flush=True)
-    if _retriever is None:
-        print("[tools] get_retriever: acquiring lock...", file=sys.stderr, flush=True)
-        with _retriever_lock:
-            print("[tools] get_retriever: lock acquired...", file=sys.stderr, flush=True)
-            if _retriever is None:
-                print("[tools] get_retriever: importing Retriever...", file=sys.stderr, flush=True)
-                from src.retrieval.retriever import Retriever
-                print("[tools] get_retriever: Retriever imported. Initializing...", file=sys.stderr, flush=True)
-                _retriever = Retriever()
-                print("[tools] get_retriever: Retriever initialized.", file=sys.stderr, flush=True)
+    print("[tools] get_retriever: acquiring lock...", file=sys.stderr, flush=True)
+    with _retriever_lock:
+        print("[tools] get_retriever: lock acquired...", file=sys.stderr, flush=True)
+        if _retriever is None:
+            print("[tools] get_retriever: importing Retriever...", file=sys.stderr, flush=True)
+            from src.retrieval.retriever import Retriever
+            print("[tools] get_retriever: Retriever imported. Initializing...", file=sys.stderr, flush=True)
+            _retriever = Retriever()
+            print("[tools] get_retriever: Retriever initialized.", file=sys.stderr, flush=True)
     print("[tools] get_retriever end.", file=sys.stderr, flush=True)
     return _retriever
 
 
-def get_rag():
+def get_rag(prevent_block=False):
     global _rag
-    if _rag is None:
-        with _rag_lock:
-            if _rag is None:
-                from src.rag.rag_pipeline import RAGPipeline
-                _rag = RAGPipeline()
+    if _rag is not None:
+        return _rag
+
+    if prevent_block:
+        return None
+
+    with _rag_lock:
+        if _rag is None:
+            retriever = get_retriever(prevent_block=False)
+            from src.rag.rag_pipeline import RAGPipeline
+            _rag = RAGPipeline(retriever=retriever)
     return _rag
 
 
@@ -46,7 +58,16 @@ def search_documents_logic(
 ):
     import sys
     print(f"[tools] search_documents_logic start: query='{query}', k={k}", file=sys.stderr, flush=True)
-    retriever = get_retriever()
+    retriever = get_retriever(prevent_block=True)
+    if retriever is None:
+        print("[tools] search_documents_logic: retriever not loaded yet, returning loading message.", file=sys.stderr, flush=True)
+        return [
+            {
+                "source": "System Notification",
+                "page": 0,
+                "content": "The knowledge base is currently loading the local AI model weights and indexing PDFs. This takes 1-2 minutes on first startup. Please wait a moment and try your question again."
+            }
+        ]
 
     docs = retriever.search(
         query=query,
@@ -90,8 +111,13 @@ def summarise_document_logic(
 ):
     import sys
     print(f"[tools] summarise_document_logic start: doc_id='{doc_id}'", file=sys.stderr, flush=True)
-    retriever = get_retriever()
-    rag = get_rag()
+    retriever = get_retriever(prevent_block=True)
+    rag = get_rag(prevent_block=True)
+    if retriever is None or rag is None:
+        print("[tools] summarise_document_logic: retriever or rag not loaded yet, returning loading message.", file=sys.stderr, flush=True)
+        return {
+            "error": "The knowledge base is currently loading local AI model weights. This takes 1-2 minutes on first startup. Please wait a moment and try again."
+        }
 
     # Query Chroma DB directly using native metadata filtering
     docs = retriever.vectordb.get(where={"source": doc_id})

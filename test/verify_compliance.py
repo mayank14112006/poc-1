@@ -87,7 +87,11 @@ def check_no_hardcoded_secrets():
 def test_rag_logic(live=False):
     print("Testing document retrieval and summary logic...")
     try:
-        from src.mcp.tools import search_documents_logic, summarise_document_logic
+        from src.mcp.tools import search_documents_logic, summarise_document_logic, get_retriever
+        
+        # Force load retriever to ensure real results in test validation
+        print("Warming up retriever for compliance check...")
+        get_retriever(prevent_block=False)
         
         # Test document search (does not require LLM API call)
         results = search_documents_logic(query="attention", k=2)

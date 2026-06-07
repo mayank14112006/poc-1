@@ -13,9 +13,12 @@ from src.config.settings import (
 
 class RAGPipeline:
 
-    def __init__(self):
+    def __init__(self, retriever=None):
 
-        self.retriever = Retriever()
+        if retriever is not None:
+            self.retriever = retriever
+        else:
+            self.retriever = Retriever()
 
         self.generator = (
             ClaudeGenerator()
