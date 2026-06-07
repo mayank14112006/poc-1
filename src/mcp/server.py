@@ -2,8 +2,10 @@ import os
 import sys
 from pathlib import Path
 
-# Force CPU-only mode to avoid CUDA hangs in sandboxed environments (UWP / Claude Desktop)
+# Force CPU-only mode and limit threads to avoid hangs and scheduling overhead in sandboxed/containerized environments
 os.environ["CUDA_VISIBLE_DEVICES"] = ""
+os.environ["OMP_NUM_THREADS"] = "1"
+os.environ["MKL_NUM_THREADS"] = "1"
 
 # Add project root to sys.path
 project_root = Path(__file__).resolve().parents[2]

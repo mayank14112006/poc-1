@@ -7,6 +7,10 @@ class LocalSentenceTransformerEmbeddings:
         import sys
         print(f"[embedding_generator] LocalSentenceTransformerEmbeddings __init__ start: model_name='{model_name}'...", file=sys.stderr, flush=True)
         import os
+        import torch
+        # Optimize CPU threads to prevent scheduling thrashing in containerized/sandboxed environments
+        torch.set_num_threads(1)
+
         from src.config.settings import BASE_DIR
         local_model_path = os.path.join(BASE_DIR, "src", "embeddings", "all-MiniLM-L6-v2")
         if os.path.exists(local_model_path) and os.listdir(local_model_path):
