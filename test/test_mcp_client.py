@@ -25,14 +25,17 @@ def main():
     # Helper to read a message
     def read():
         line = proc.stdout.readline()
-        print(f"<-- Recv: {line.strip()}")
+        if line:
+            safe_line = line.strip().encode(sys.stdout.encoding, errors="backslashreplace").decode(sys.stdout.encoding)
+            print(f"<-- Recv: {safe_line}")
         return json.loads(line) if line else None
 
     # Thread to print stderr in real-time
     import threading
     def read_stderr():
         for line in proc.stderr:
-            print(f"[stderr] {line.strip()}", flush=True)
+            safe_line = line.strip().encode(sys.stdout.encoding, errors="backslashreplace").decode(sys.stdout.encoding)
+            print(f"[stderr] {safe_line}", flush=True)
     threading.Thread(target=read_stderr, daemon=True).start()
 
     time.sleep(1) # wait for startup
