@@ -90,8 +90,6 @@ if __name__ == "__main__":
     #      The 5-min wait is safe: Claude Desktop's per-tool timeout is ~4 min,
     #      but pre-warm completes in ~30-60 seconds, long before that.
     # ─────────────────────────────────────────────────────────────────────────
-    from src.mcp.tools import _init_event
-
     def _prewarm():
         """Pre-warm ONLY local components (no network calls).
 
@@ -105,8 +103,6 @@ if __name__ == "__main__":
             print("[server] Pre-warm complete — search_documents is ready.", file=sys.stderr, flush=True)
         except Exception as e:
             print(f"[server] Pre-warm error (retriever): {e}", file=sys.stderr, flush=True)
-        finally:
-            _init_event.set()
 
     threading.Thread(target=_prewarm, daemon=True).start()
     print("[server] MCP server starting (pre-warm running in background)...", file=sys.stderr, flush=True)

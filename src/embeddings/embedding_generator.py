@@ -4,7 +4,13 @@ from sentence_transformers import SentenceTransformer
 class LocalSentenceTransformerEmbeddings:
 
     def __init__(self, model_name="all-MiniLM-L6-v2"):
-        self.model = SentenceTransformer(model_name, local_files_only=True)
+        import os
+        from src.config.settings import BASE_DIR
+        local_model_path = os.path.join(BASE_DIR, "src", "embeddings", "all-MiniLM-L6-v2")
+        if os.path.exists(local_model_path) and os.listdir(local_model_path):
+            self.model = SentenceTransformer(local_model_path)
+        else:
+            self.model = SentenceTransformer(model_name, local_files_only=True)
 
     def embed_documents(self, texts):
         embeddings = self.model.encode(

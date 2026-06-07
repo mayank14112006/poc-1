@@ -7,24 +7,27 @@ os.environ["CUDA_VISIBLE_DEVICES"] = ""
 _retriever = None
 _rag = None
 
-# Set by server.py's background pre-warm thread when models are loaded.
-# Tool functions wait on this before executing so they never time out.
-_init_event = threading.Event()
+_retriever_lock = threading.Lock()
+_rag_lock = threading.Lock()
 
 
 def get_retriever():
     global _retriever
     if _retriever is None:
-        from src.retrieval.retriever import Retriever
-        _retriever = Retriever()
+        with _retriever_lock:
+            if _retriever is None:
+                from src.retrieval.retriever import Retriever
+                _retriever = Retriever()
     return _retriever
 
 
 def get_rag():
     global _rag
     if _rag is None:
-        from src.rag.rag_pipeline import RAGPipeline
-        _rag = RAGPipeline()
+        with _rag_lock:
+            if _rag is None:
+                from src.rag.rag_pipeline import RAGPipeline
+                _rag = RAGPipeline()
     return _rag
 
 
@@ -33,10 +36,6 @@ def search_documents_logic(
     query: str,
     k: int = 5
 ):
-    # Wait up to 5 minutes for the background pre-warm thread to finish.
-    # Pre-warm takes ~30-60s; Claude Desktop tool timeout is ~4 min — safe.
-    _init_event.wait(timeout=300.0)
-
     retriever = get_retriever()
 
     docs = retriever.search(
@@ -79,9 +78,6 @@ def ask_documents_logic(
 def summarise_document_logic(
     doc_id: str
 ):
-    # Wait up to 5 minutes for the background pre-warm thread to finish.
-    _init_event.wait(timeout=300.0)
-
     retriever = get_retriever()
     rag = get_rag()
 
