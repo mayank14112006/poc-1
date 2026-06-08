@@ -4,6 +4,8 @@ A specification-compliant **Retrieval-Augmented Generation (RAG)** chatbot and *
 
 This project implements **POC 01** of the AI Engineering Intern assessment.
 
+🚀 **Live Streamlit Demo:** [https://5hjfvsgxrf5zsk9bvpn3mu.streamlit.app/](https://5hjfvsgxrf5zsk9bvpn3mu.streamlit.app/)
+
 ---
 
 ## Architecture Overview
@@ -250,11 +252,14 @@ This will:
 
 ### Option A — Streamlit Chat UI
 
+Run locally:
 ```bash
 streamlit run src/ui/app.py
 ```
 
 Opens at `http://localhost:8501`. Provides a chat interface backed by the full RAG pipeline with inline `[Source N]` citations.
+
+Alternatively, you can access the hosted version at the **Live Demo URL:** [https://5hjfvsgxrf5zsk9bvpn3mu.streamlit.app/](https://5hjfvsgxrf5zsk9bvpn3mu.streamlit.app/)
 
 ### Option B — MCP Server (standalone)
 
