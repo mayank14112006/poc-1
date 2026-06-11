@@ -10,6 +10,20 @@ _rag = None
 _retriever_lock = threading.Lock()
 _rag_lock = threading.Lock()
 
+_load_status = "Initializing background pre-loader..."
+
+
+def get_load_status():
+    global _load_status
+    return _load_status
+
+
+def set_load_status(status):
+    global _load_status
+    import sys
+    print(f"[tools] Load status update: {status}", file=sys.stderr, flush=True)
+    _load_status = status
+
 
 def get_retriever(prevent_block=False):
     global _retriever
@@ -26,8 +40,10 @@ def get_retriever(prevent_block=False):
     with _retriever_lock:
         print("[tools] get_retriever: lock acquired...", file=sys.stderr, flush=True)
         if _retriever is None:
+            set_load_status("Importing Retriever and vector DB libraries (Step 1 of 3)...")
             print("[tools] get_retriever: importing Retriever...", file=sys.stderr, flush=True)
             from src.retrieval.retriever import Retriever
+            set_load_status("Initializing Retriever (Step 2 of 3)...")
             print("[tools] get_retriever: Retriever imported. Initializing...", file=sys.stderr, flush=True)
             _retriever = Retriever()
             print("[tools] get_retriever: Retriever initialized.", file=sys.stderr, flush=True)
@@ -45,6 +61,7 @@ def get_rag(prevent_block=False):
 
     with _rag_lock:
         if _rag is None:
+            set_load_status("Initializing RAG pipeline (connecting retriever to generator)...")
             retriever = get_retriever(prevent_block=False)
             from src.rag.rag_pipeline import RAGPipeline
             _rag = RAGPipeline(retriever=retriever)
@@ -61,11 +78,12 @@ def search_documents_logic(
     retriever = get_retriever(prevent_block=True)
     if retriever is None:
         print("[tools] search_documents_logic: retriever not loaded yet, returning loading message.", file=sys.stderr, flush=True)
+        status = get_load_status()
         return [
             {
                 "source": "System Notification",
                 "page": 0,
-                "content": "The knowledge base is currently loading the local AI model weights and indexing PDFs. This takes 1-2 minutes on first startup. Please wait a moment and try your question again."
+                "content": f"The knowledge base is currently initializing: {status}\n\nOn Windows/UWP environments, child processes are suspended when the Claude Desktop app is minimized or placed in the background. To ensure the initialization completes, please keep this Claude window open and active in the foreground for 60-90 seconds, then try your query again."
             }
         ]
 
@@ -115,8 +133,9 @@ def summarise_document_logic(
     rag = get_rag(prevent_block=True)
     if retriever is None or rag is None:
         print("[tools] summarise_document_logic: retriever or rag not loaded yet, returning loading message.", file=sys.stderr, flush=True)
+        status = get_load_status()
         return {
-            "error": "The knowledge base is currently loading local AI model weights. This takes 1-2 minutes on first startup. Please wait a moment and try again."
+            "error": f"The knowledge base is currently initializing: {status}\n\nOn Windows/UWP environments, child processes are suspended when the Claude Desktop app is minimized or placed in the background. To ensure the initialization completes, please keep this Claude window open and active in the foreground for 60-90 seconds, then try again."
         }
 
     # Query Chroma DB directly using native metadata filtering

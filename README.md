@@ -347,8 +347,6 @@ intern_task/
 │   │   └── tools.py            # Tool logic implementations
 │   └── ui/
 │       └── app.py              # Streamlit chat interface
-├── scripts/
-│   └── ingest.py               # Alternative ingestion entry point
 ├── test/
 │   ├── test1.py                # Infisical connection smoke test
 │   └── verify_compliance.py    # Full spec compliance checker

@@ -11,8 +11,10 @@ class Retriever:
 
     def __init__(self):
         import sys
+        from src.mcp.tools import set_load_status
         print("[retriever] __init__ start...", file=sys.stderr, flush=True)
 
+        set_load_status("Loading SentenceTransformer model weights (Step 3 of 3)...")
         print("[retriever] __init__: loading embedding model...", file=sys.stderr, flush=True)
         embedding_model = (
             EmbeddingGenerator()
@@ -20,6 +22,7 @@ class Retriever:
         )
         print("[retriever] __init__: embedding model loaded.", file=sys.stderr, flush=True)
 
+        set_load_status("Connecting to local Chroma vector database...")
         print("[retriever] __init__: loading vector store...", file=sys.stderr, flush=True)
         self.vectordb = (
             ChromaManager(
@@ -27,6 +30,7 @@ class Retriever:
             ).load_vector_store()
         )
         print("[retriever] __init__: vector store loaded.", file=sys.stderr, flush=True)
+        set_load_status("Retriever ready.")
 
     def search(
         self,
